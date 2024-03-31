@@ -7,12 +7,18 @@ using LinearAlgebra: dot
 using UnicodePlots
 using Test
 
+import Zygote.ChainRulesCore: rrule
+
+# custome rule for muladd, currently flawed in Zygote
+@inline rrule(::typeof(muladd), a,b,c) = muladd(a,b,c), (x)->(b*x, a*x, x)
+
 struct Model{A}
     z::A
 end
 tendencies!(dstate, (;z)::Model, state, _, _) = @. dstate = state*z
 scratch_space(::Model, state) = void
 model_dstate(::Model, z) = similar(z)
+
 
 function make_model(Scheme)
     x, y = range(-3, 1, 101), range(-4, 4, 201)
