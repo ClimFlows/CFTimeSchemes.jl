@@ -65,22 +65,26 @@ end
 function (up::LinUp{F,1})(x, u::A, ks::NTuple{1,A}) where {F, A<:Array}
     ka, = ks
     a, = up.coefs
-    return @. x = muladd(a, ka, u)
+#    return @. x = muladd(a, ka, u)
+    return @. x = a*ka + u
 end
 function (up::LinUp{F,2})(x, u::A, ks::NTuple{2,A}) where {F, A<:Array}
     ka, kb = ks
     a, b = up.coefs
-    return @. x = muladd(b, kb, muladd(a, ka, u))
+#    return @. x = muladd(b, kb, muladd(a, ka, u))
+    return @. x = b*kb + a*ka + u
 end
 function (up::LinUp{F,3})(x, u::A, ks::NTuple{3,A}) where {F, A<:Array}
     ka, kb, kc = ks
     a, b, c = up.coefs
-    return @. x = muladd(c, kc, muladd(b, kb, muladd(a, ka, u)))
+#    return @. x = muladd(c, kc, muladd(b, kb, muladd(a, ka, u)))
+    return @. x = c*kc + b*kb + a*ka + u
 end
 function (up::LinUp{F,4})(x, u::A, ks::NTuple{4,A}) where {F, A<:Array}
     ka, kb, kc, kd = ks
     a, b, c, d = up.coefs
-    return @. x = muladd(d, kd, muladd(c, kc, muladd(b, kb, muladd(a, ka, u))))
+#    return @. x = muladd(d, kd, muladd(c, kc, muladd(b, kb, muladd(a, ka, u))))
+    return @. x = d*kd + c*kc + b*kb + a*ka + u
 end
 
 # LinUp on named tuples
