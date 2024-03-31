@@ -54,38 +54,25 @@ update!(x, u::S, a::F, ka::S) where {F, S} = LinUp((a,))(x,u,(ka,))::S
 update!(x, u::S, a::F, ka::S, b::F, kb::S) where {F, S} = LinUp((a,b))(x,u,(ka,kb))::S
 update!(x, u::S, a::F, ka::S, b::F, kb::S, c::F, kc::S) where {F, S} = LinUp((a,b,c))(x,u,(ka,kb,kc))::S
 update!(x, u::S, a::F, ka::S, b::F, kb::S, c::F, kc::S, d::F, kd::S) where {F, S} = LinUp((a,b,c,d))(x,u,(ka,kb,kc,kd))::S
+# Currently limited to 4-stage schemes
 
 struct LinUp{F,N} # linear update with coefs=(a,b, ...)
     coefs::NTuple{N,F}
 end
 
 # LinUp on arrays
-# Currently limited to 4-stage schemes
+(up::LinUp{F,N})(x, u::A, ks::NTuple{N,A}) where {N, F, A<:Array} = update_array(Val(N), x, u, up.coefs, ks)
+update_array(::Val{1}, x, u, (a,),      (ka,))         = @. x = muladd(a, ka, u)
+update_array(::Val{2}, x, u, (a,b),     (ka,kb))       = @. x = muladd(b, kb, muladd(a, ka, u))
+update_array(::Val{3}, x, u, (a,b,c,),  (ka,kb,kc))    = @. x = muladd(c, kc, muladd(b, kb, muladd(a, ka, u)))
+update_array(::Val{4}, x, u, (a,b,c,d), (ka,kb,kc,kd)) = @. x = muladd(d, kd, muladd(c, kc, muladd(b, kb, muladd(a, ka, u))))
 
-function (up::LinUp{F,1})(x, u::A, ks::NTuple{1,A}) where {F, A<:Array}
-    ka, = ks
-    a, = up.coefs
-#    return @. x = muladd(a, ka, u)
-    return @. x = a*ka + u
-end
-function (up::LinUp{F,2})(x, u::A, ks::NTuple{2,A}) where {F, A<:Array}
-    ka, kb = ks
-    a, b = up.coefs
-#    return @. x = muladd(b, kb, muladd(a, ka, u))
-    return @. x = b*kb + a*ka + u
-end
-function (up::LinUp{F,3})(x, u::A, ks::NTuple{3,A}) where {F, A<:Array}
-    ka, kb, kc = ks
-    a, b, c = up.coefs
-#    return @. x = muladd(c, kc, muladd(b, kb, muladd(a, ka, u)))
-    return @. x = c*kc + b*kb + a*ka + u
-end
-function (up::LinUp{F,4})(x, u::A, ks::NTuple{4,A}) where {F, A<:Array}
-    ka, kb, kc, kd = ks
-    a, b, c, d = up.coefs
-#    return @. x = muladd(d, kd, muladd(c, kc, muladd(b, kb, muladd(a, ka, u))))
-    return @. x = d*kd + c*kc + b*kb + a*ka + u
-end
+# we avoid muladd for complex arrays due to a Zygote/ForwardDiff bug
+(up::LinUp{F,N})(x, u::A, ks::NTuple{N,A}) where {N, F, A<:Array{<:Complex}} = update_carray(Val(N), x, u, up.coefs, ks)
+update_carray(::Val{1}, x, u, (a,),      (ka,))         = @. x = a*ka + u
+update_carray(::Val{2}, x, u, (a,b),     (ka,kb))       = @. x = b*kb + a*ka + u
+update_carray(::Val{3}, x, u, (a,b,c,),  (ka,kb,kc))    = @. x = c*kc + b*kb + a*ka + u
+update_carray(::Val{4}, x, u, (a,b,c,d), (ka,kb,kc,kd)) = @. x = d*kd + c*kc + b*kb + a*ka + u
 
 # LinUp on named tuples
 
