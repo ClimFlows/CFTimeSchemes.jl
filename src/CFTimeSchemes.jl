@@ -157,4 +157,11 @@ function advance!(future, (; model)::RungeKutta4, u0, t0, dt, (; scratch, k0, k1
     return future
 end
 
+#========== for Julia <1.9 ==========#
+
+using PackageExtensionCompat
+function __init__()
+    @require_extensions
+end
+
 end

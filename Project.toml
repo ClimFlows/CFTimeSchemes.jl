@@ -5,6 +5,7 @@ version = "0.2.0"
 
 [deps]
 MutatingOrNot = "6a37069a-9a67-4b2d-a34a-f09ab4b23c7c"
+PackageExtensionCompat = "65ce6f38-6b18-4e1d-a461-8949797d7930"
 
 [weakdeps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
