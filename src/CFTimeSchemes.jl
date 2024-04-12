@@ -61,7 +61,7 @@ struct LinUp{F,N} # linear update with coefs=(a,b, ...)
 end
 
 # LinUp on arrays
-(up::LinUp{F,N})(x, u::A, ks::NTuple{N,A}) where {N, F, A<:Array} = update_array(Val(N), x, u, up.coefs, ks)
+(up::LinUp{F,N})(x, u::A, ks::NTuple{N,A}) where {N, F, A<:AbstractArray} = update_array(Val(N), x, u, up.coefs, ks)
 update_array(::Val{1}, x, u, (a,),      (ka,))         = @. x = muladd(a, ka, u)
 update_array(::Val{2}, x, u, (a,b),     (ka,kb))       = @. x = muladd(b, kb, muladd(a, ka, u))
 update_array(::Val{3}, x, u, (a,b,c,),  (ka,kb,kc))    = @. x = muladd(c, kc, muladd(b, kb, muladd(a, ka, u)))
@@ -96,8 +96,8 @@ end
 
 # Initial-value problem solver
 """
-    solver = IVPSolver(model, scheme, dt, u0, mutating=false)
-    solver = IVPSolver(model, scheme, dt)
+    solver = IVPSolver(scheme, dt ; u0, mutating=false)
+    solver = IVPSolver(scheme, dt)
 Use `solver` with `advance`.
 
 By default, `solver` is non-mutating, which is known to work with Zygote but allocates.
@@ -109,13 +109,10 @@ struct IVPSolver{F,Scheme,Scratch}
     dt::F # time step
     scheme::Scheme
     scratch::Scratch # scratch space, or void
-
-    function IVPSolver(scheme::S, dt::F, u0, mutating=false) where {F,S}
-        scr = mutating ? scratch_space(scheme, u0) : void
-        new{F,S,typeof(scr)}(dt, scheme, scr)
-    end
-    IVPSolver(scheme::S, dt::F) where {F,S} = new{F,S,Void}(dt, scheme, void)
 end
+
+IVPSolver(scheme::S, dt::F ; u0=nothing, mutating=false) where {F,S} =
+    IVPSolver(dt, scheme, mutating ? scratch_space(scheme, u0) : void)
 
 """
     future, t = advance!(future, solver, present, t, N)
@@ -130,7 +127,6 @@ function advance!(storage::Union{Void, State}, (; dt, scheme, scratch)::IVPSolve
     end
     return state, t+N*dt
 end
-
 
 """
     scheme = RungeKutta4(model)
