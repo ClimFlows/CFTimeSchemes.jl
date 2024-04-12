@@ -54,7 +54,7 @@ function autodiff(Scheme)
     function loss_mutating(x)
         zx = x*z0
         z1 = similar(zx)
-        solver! = IVPSolver(scheme, 1.0, zx, true)
+        solver! = IVPSolver(scheme, 1.0 ; u0=zx, mutating=true)
         advance!(z1, solver!, zx, 0.0, 10)
         sum(abs2, z1)
     end
