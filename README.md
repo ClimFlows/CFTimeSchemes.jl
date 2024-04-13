@@ -9,7 +9,7 @@ AD-friendly, fixed time-step RK and ARK schemes.
 
 ## Installation
 
-`CFTimesSchemes` is registered in the ClimFlows repository. [Follow instructions there](https://github.com/ClimFlows/JuliaRegistry), then:
+`CFTimesSchemes` is registered in the ClimFlows registry. [Follow instructions there](https://github.com/ClimFlows/JuliaRegistry), then:
 ```julia
 ] add CFTimeSchemes
 ```
