@@ -5,55 +5,80 @@ using MutatingOrNot: void, Void
 
 #============ ClimFlows time integration API ===============#
 
-# Model
-"""
-    k = model_dstate(model, u)
-Returns an object in which we can store tendencies ; u0 is passed to handle ForwardDiff.Dual
-"""
-function model_dstate end
+# Model API
 
 """
-    space = scratch_space(model, u0)
-    space = scratch_space(scheme, u0)
-scratch space used to compute tendencies or keep sub-stages (RK); u0 is passed to handle ForwardDiff.Dual
-"""
-function scratch_space end
+    dstate, scratch = tendencies!(dstate, scratch, model::Model, state, time) # Mutating
+    dstate, scratch = tendencies!(void, void, model::Model, state, time)      # Non-mutating
+Return tendencies `dstate` and scratch space `scratch` for a certain `model`, `state` and `time`.
+Pass `void` to arguments `dstate` and `scratch` for non-mutating variant.
 
-"""
-    dstate = tendencies!(dstate, model, u, scratch, t) # Mutating
-    dstate = tendencies!(void, model, u, void, t) # Non-mutatingœ
-Computes tendencies. Pass `void` to arguments `dstate` and `scratch` for non-mutating variant.
+This function is not implemented. It is meant to be implemented by the user for user-defined type `model`.
 """
 function tendencies! end
 
-# Time scheme
 """
-    stages = time_stages(scheme, model, u0)
-returns an object storing tendencies at sub-stages (RK). u0 is passed to handle ForwardDiff.Dual
+    k = model_dstate(model, state, time)
+Returns an object `k` in which we can store tendencies. Argument `state` is the model state. 
+Its type may contain information needed to allocate `k`, e.g. arrays may be of eltype `ForwardDiff.Dual`.
+
+The implementation looks like:
+    k, _ = tendencies(void, void, model, state, time)
+which incurs the needless computation of tendencies.
+If this behavior is undesirable, one may pass a special value for `time` such as `nothing`
+and implement a specialized version of `tendencies!` which only allocates and skips computations.
 """
-function time_stages end
+model_dstate(model, state, time) = tendencies!(void, void, model, state, time)[1]
 
 """
-    future, t = advance!(future, scheme, present, t, dt, scratch)
-    future, t = advance!(void, scheme, present, t, dt, void)
+    scratch = scratch_space(model, state, time)
+    scratch = scratch_space(scheme, state, time)
+Return scratch space `scratch`, to be used later to compute tendencies for `model`
+or to hold sub-stages of Runge-Kutta scheme `scheme`. 
+
+Returns an object `k` in which we can store tendencies. Argument `state` is the model state.
+Its type may contain information needed to allocate `k`, e.g. arrays may be of eltype `ForwardDiff.Dual`.
+
+For a model, the implementation looks like:
+    _, scratch = tendencies(void, void, model, state, time)
+which incurs the needless computation of tendencies.
+If this behavior is undesirable, one may pass a special value for `time` such as `nothing`
+and implement a specialized version of `tendencies!` which only allocates and skips computations.
+"""
+scratch_space(model, state, time) = tendencies!(void, void, model, state, time)[2]
+
+# Time scheme API
+"""
+    future, t = advance!(future, scratch, scheme, present, t, dt) # mutating
+    future, t = advance!(void, void, scheme, present, t, dt)      # non-mutating
 Integrate in time by one time step, respectively mutating (non-allocating) and non-mutating
 """
 function advance! end
 
 """
-    new = update!(new, new, increment, factor)
-    new = update!(new, old, increment, factor)
-    new = update!(void, old, increment, factor)
-Respectively equivalent to:
-    @. new += factor*increment
-    @. new = old + factor*increment
-    new = @. old + factor*increment
-Operates recursively on nested tuples / named tuples
+    new = update!(new, new, model, factor, increment)
+    new = update!(new, old, model, factor, increment)
+    new = update!(void, old, model, factor, increment)
+Return `new`` model state, obtained by updating the `old` state by `factor*incremeent`. 
+Extra arguments `factor1, increment1, ...` can be appended.
+Allocates `new` if `new::Void`. Acts in-place if `new==old`.
+
+The provided implementation ignores argument `model` and calls
+    `update_base!(new, old, factor, increment)`
+which operates recursively on nested tuples / named tuples and looks like
+    new = @. new = old + factor*increment
+for arrays.
+
+If a different behavior is desired, one may specialize `update!` for a specific type of `model!`.
+
+See also update_with_manager!
 """
-update!(x, u::S, a::F, ka::S) where {F, S} = LinUp((a,))(x,u,(ka,))::S
-update!(x, u::S, a::F, ka::S, b::F, kb::S) where {F, S} = LinUp((a,b))(x,u,(ka,kb))::S
-update!(x, u::S, a::F, ka::S, b::F, kb::S, c::F, kc::S) where {F, S} = LinUp((a,b,c))(x,u,(ka,kb,kc))::S
-update!(x, u::S, a::F, ka::S, b::F, kb::S, c::F, kc::S, d::F, kd::S) where {F, S} = LinUp((a,b,c,d))(x,u,(ka,kb,kc,kd))::S
+@inline update!(new, old, _, args...) = update_base!(new, old, args...)
+
+update_base!(x, u::S, a::F, ka::S) where {F, S} = LinUp((a,))(x,u,(ka,))::S
+update_base!(x, u::S, a::F, ka::S, b::F, kb::S) where {F, S} = LinUp((a,b))(x,u,(ka,kb))::S
+update_base!(x, u::S, a::F, ka::S, b::F, kb::S, c::F, kc::S) where {F, S} = LinUp((a,b,c))(x,u,(ka,kb,kc))::S
+update_base!(x, u::S, a::F, ka::S, b::F, kb::S, c::F, kc::S, d::F, kd::S) where {F, S} = LinUp((a,b,c,d))(x,u,(ka,kb,kc,kd))::S
 # Currently limited to 4-stage schemes
 
 struct LinUp{F,N} # linear update with coefs=(a,b, ...)
@@ -75,13 +100,12 @@ update_carray(::Val{3}, x, u, (a,b,c,),  (ka,kb,kc))    = @. x = c*kc + b*kb + a
 update_carray(::Val{4}, x, u, (a,b,c,d), (ka,kb,kc,kd)) = @. x = d*kd + c*kc + b*kb + a*ka + u
 
 # LinUp on named tuples
-
-svoid(::Void, u) = map(uu->void, u)
-svoid(x, u) = x
-
 function (up::LinUp{F,N})(x, u::NT, ka::NTuple{N,NT}) where {F, N, names, NT<:NamedTuple{names}}
     return map(up, svoid(x,u), u, transp(ka))
 end
+
+svoid(::Void, u) = map(uu->void, u)
+svoid(x, u) = x
 
 @inline function transp(ntup::NTuple{N,NT}) where {N, names, NT<:NamedTuple{names}}
     M = length(names) # compile-time constant
@@ -96,14 +120,16 @@ end
 
 # Initial-value problem solver
 """
-    solver = IVPSolver(scheme, dt ; u0, mutating=false)
-    solver = IVPSolver(scheme, dt)
-Use `solver` with `advance`.
+    solver = IVPSolver(scheme, dt)         # non-mutating
+    solver = IVPSolver(scheme, dt, state0, time0) # mutating
+Return initial-value problem solver `solver`, to be used with `advance!`.
 
-By default, `solver` is non-mutating, which is known to work with Zygote but allocates.
-If `u0` is provided *and* `mutating=true`, `advance` should not allocate and have better performance.
-The type and shape of `u0` (but not the values) are used to allocate scratch spaces, see `scratch_space`.
-This allows the non-mutating mode to work with ForwardDiff.
+The first syntax returns a non-mutating solver, known to work with Zygote but which allocates.
+When `state0` and `time0` are provided, scratch spaces are allocated and a mutating solver is returned.
+`advance` should then not allocate and have better performance due to memory reuse.
+
+`state0` and `time0` are used only to allocate scratch spaces. A special value of `time0` 
+such as `nothing` may be used to avoid the needless computation of tendencies, see `scratch_space` and `model_dstate`.
 """
 struct IVPSolver{F,Scheme,Scratch}
     dt::F # time step
@@ -111,8 +137,8 @@ struct IVPSolver{F,Scheme,Scratch}
     scratch::Scratch # scratch space, or void
 end
 
-IVPSolver(scheme::S, dt::F ; u0=nothing, mutating=false) where {F,S} =
-    IVPSolver(dt, scheme, mutating ? scratch_space(scheme, u0) : void)
+IVPSolver(scheme, dt) = IVPSolver(dt, scheme, void)
+IVPSolver(scheme, dt, state0, time0) = IVPSolver(dt, scheme, scratch_space(scheme, state0, time0))
 
 """
     future, t = advance!(future, solver, present, t, N)
@@ -136,24 +162,25 @@ struct RungeKutta4{Model}
     model::Model
 end
 
-function scratch_space((; model)::RungeKutta4, u0)
-    k() = model_dstate(model, u0)
-    return (scratch = scratch_space(model, u0), k0 = k(), k1 = k(), k2 = k(), k3 = k())
+function scratch_space((; model)::RungeKutta4, u0, t0)
+    k() = model_dstate(model, u0, t0)
+    return (scratch = scratch_space(model, u0, t0), k0 = k(), k1 = k(), k2 = k(), k3 = k())
 end
 
 function advance!(future, (; model)::RungeKutta4, u0, t0, dt, (; scratch, k0, k1, k2, k3))
-    k0 = tendencies!(k0, model, u0, scratch, t0)
+    # we ignore the second value (scratch) returned by tendencies!
+    k0, _ = tendencies!(k0, scratch, model, u0, t0)
     # u1 = u0 + dt/2*k0
-    u1 = update!(future, u0, dt / 2, k0)
-    k1 = tendencies!(k1, model, u1, scratch, t0 + dt / 2)
+    u1 = update!(future, u0, model, dt / 2, k0)
+    k1, _ = tendencies!(k1, scratch, model, u1, t0 + dt / 2)
     # u2 = u1 - dt/2*k0 + dt/2*k1 == u0 + dt/2*k1
-    u2 = update!(future, u1, -dt / 2, k0, dt / 2, k1)
-    k2 = tendencies!(k2, model, u2, scratch, t0 + dt / 2)
+    u2 = update!(future, u1, model, -dt / 2, k0, dt / 2, k1)
+    k2, _ = tendencies!(k2, scratch, model, u2, t0 + dt / 2)
     # u3 = u2 - dt/2*k1 + dt*k2 == u0 + dt*k2
-    u3 = update!(future, u2, -dt / 2, k1, dt, k2)
-    k3 = tendencies!(k3, model, u3, scratch, t0 + dt)
+    u3 = update!(future, u2, model, -dt / 2, k1, dt, k2)
+    k3, _ = tendencies!(k3, scratch, model, u3, t0 + dt)
     # u4 = u0 + (k0+k3)*(dt/6) + (k1+k2)*(dt/3)
-    future = update!(future, u3, dt / 6, k0, dt / 3, k1, -2dt / 3, k2, dt / 6, k3)
+    future = update!(future, u3, model, dt / 6, k0, dt / 3, k1, -2dt / 3, k2, dt / 6, k3)
     return future
 end
 

@@ -15,10 +15,7 @@ import Zygote.ChainRulesCore: rrule
 struct Model{A}
     z::A
 end
-tendencies!(dstate, (;z)::Model, state, _, _) = @. dstate = state*z
-scratch_space(::Model, state) = void
-model_dstate(::Model, z) = similar(z)
-
+tendencies!(dstate, _, m::Model, state, _) = (@. dstate = state*m.z), nothing
 
 function make_model(Scheme)
     x, y = range(-3, 1, 101), range(-4, 4, 201)
@@ -54,7 +51,7 @@ function autodiff(Scheme)
     function loss_mutating(x)
         zx = x*z0
         z1 = similar(zx)
-        solver! = IVPSolver(scheme, 1.0 ; u0=zx, mutating=true)
+        solver! = IVPSolver(scheme, 1.0, zx, nothing)
         advance!(z1, solver!, zx, 0.0, 10)
         sum(abs2, z1)
     end
