@@ -10,5 +10,5 @@ Documentation for [CFTimeSchemes](https://github.com/ClimFlows/CFTimeSchemes.jl)
 ```
 
 ```@autodocs
-Modules = [CFTimeSchemes]
+Modules = [CFTimeSchemes, CFTimeSchemes.Update]
 ```
