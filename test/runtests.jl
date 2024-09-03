@@ -9,7 +9,7 @@ using Test
 
 import Zygote.ChainRulesCore: rrule
 
-# custome rule for muladd, currently flawed in Zygote
+# custom rule for muladd, currently flawed in Zygote
 @inline rrule(::typeof(muladd), a,b,c) = muladd(a,b,c), (x)->(b*x, a*x, x)
 
 struct Model{A}
