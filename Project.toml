@@ -1,7 +1,7 @@
 name = "CFTimeSchemes"
 uuid = "79282218-dfaf-41aa-91df-a06f65ece871"
 authors = ["The ClimFlows contributors"]
-version = "0.3.0"
+version = "0.3.1"
 
 [deps]
 MutatingOrNot = "6a37069a-9a67-4b2d-a34a-f09ab4b23c7c"
