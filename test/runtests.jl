@@ -1,4 +1,4 @@
-using CFTimeSchemes: void, RungeKutta4, IVPSolver, advance!
+using CFTimeSchemes: void, RungeKutta4, KinnmarkGray, max_time_step, IVPSolver, advance!
 import CFTimeSchemes: tendencies!, scratch_space, model_dstate
 
 using ForwardDiff: ForwardDiff
@@ -18,7 +18,7 @@ end
 tendencies!(dstate, _, m::Model, state, _) = (@. dstate = state*m.z), nothing
 
 function make_model(Scheme)
-    x, y = range(-3, 1, 101), range(-4, 4, 201)
+    x, y = range(-3, 1, 101), range(-4.5, 4.5, 201)
     model = Model([xx+yy*1im for xx in x, yy in y])
     z0 = one.(model.z) # complex 1
     scheme = Scheme(model)
@@ -29,7 +29,8 @@ function stability_region(Scheme)
     model, scheme, z0 = make_model(Scheme)
     solver = IVPSolver(scheme, 1.0)
     z1, t = advance!(void, solver, z0, 0.0, 100)
-    @info Scheme
+    max_dt = max_time_step(scheme, 1.0)
+    @info Scheme max_dt
     display(heatmap(@. min(1.0, abs(z1))))
     @test true
 end
@@ -70,12 +71,13 @@ function autodiff(Scheme)
     @test (g_ssa ≈ g_mut) & (g_ssa ≈ g_zyg)
 end
 
+Schemes = [RungeKutta4, KinnmarkGray{2,5}, KinnmarkGray{3,5}]
 @testset "Stability" begin
-    stability_region(RungeKutta4)
+    foreach(stability_region, Schemes)
     println()
 end
 
 @testset "Auto-diff" begin
-    autodiff(RungeKutta4)
+    foreach(autodiff, Schemes)
     println()
 end
