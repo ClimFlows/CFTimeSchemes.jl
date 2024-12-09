@@ -1,4 +1,5 @@
-using CFTimeSchemes: void, RungeKutta4, KinnmarkGray, max_time_step, IVPSolver, advance!
+using CFTimeSchemes: RungeKutta4, KinnmarkGray, BackwardEuler, Midpoint, TRBDF2
+using CFTimeSchemes: void, max_time_step, IVPSolver, advance!
 import CFTimeSchemes: tendencies!, scratch_space, model_dstate
 
 using ForwardDiff: ForwardDiff
@@ -16,9 +17,10 @@ struct Model{A}
     z::A
 end
 tendencies!(dstate, _, m::Model, state, _) = (@. dstate = state*m.z), nothing
+tendencies!(dstate, _, m::Model, state, _, tau) = (@. dstate = state*m.z/(1-tau*m.z)), nothing
 
 function make_model(Scheme)
-    x, y = range(-3, 1, 101), range(-4.5, 4.5, 201)
+    x, y = range(-3, 0.5, 101), range(-4.5, 4.5, 201)
     model = Model([xx+yy*1im for xx in x, yy in y])
     z0 = one.(model.z) # complex 1
     scheme = Scheme(model)
@@ -33,6 +35,10 @@ function stability_region(Scheme)
     @info Scheme max_dt
     display(heatmap(@. min(1.0, abs(z1))))
     @test true
+
+    solver = IVPSolver(scheme, 0.01)
+    z1, t = advance!(void, solver, z0, 0.0, 100)
+    display(heatmap(@. log10(abs(z1*exp(-model.z)-1))))
 end
 
 function autodiff(Scheme)
@@ -71,7 +77,9 @@ function autodiff(Scheme)
     @test (g_ssa ≈ g_mut) & (g_ssa ≈ g_zyg)
 end
 
-Schemes = [RungeKutta4, KinnmarkGray{2,5}, KinnmarkGray{3,5}]
+Schemes = [RungeKutta4, KinnmarkGray{2,5}, KinnmarkGray{3,5}, 
+            BackwardEuler, Midpoint, TRBDF2]
+
 @testset "Stability" begin
     foreach(stability_region, Schemes)
     println()
