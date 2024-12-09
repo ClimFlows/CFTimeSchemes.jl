@@ -5,13 +5,29 @@ using MutatingOrNot: void, Void
 
 #============ ClimFlows time integration API ===============#
 
-# Model API
-
 """
-    dstate, scratch = tendencies!(dstate, scratch, model::Model, state, time) # Mutating
-    dstate, scratch = tendencies!(void, void, model::Model, state, time)      # Non-mutating
+    # This variant is called by explicit time schemes.
+    dstate, scratch = tendencies!(dstate, scratch, model, state, time) # Mutating
+    dstate, scratch = tendencies!(void, void, model, state, time)      # Non-mutating
 Return tendencies `dstate` and scratch space `scratch` for a certain `model`, `state` and `time`.
-Pass `void` to arguments `dstate` and `scratch` for non-mutating variant.
+Pass `void` as output arguments for non-mutating variant.
+
+    # This variant is called by diagonally-implicit time schemes.
+    dstate, scratch = tendencies!(dstate, scratch, model, state, time, tau) # Mutating
+    dstate, scratch = tendencies!(void, void, model, state, time, tau)      # Non-mutating
+
+Perform a backward Euler time step from time `time` to `time+tau` then return tendencies `dstate` evaluated at `time+tau`
+and scratch space `scratch` for a certain `model` and `state`. `tau` must be non-negative and may be zero.
+Pass `void` as output arguments for non-mutating variant.
+
+    # This variant is called by IMEX time schemes.
+    dstate_exp, dstate_imp, scratch = tendencies!(dstate_exp, dstate_imp, scratch, model, state, time, tau) # Mutating
+    dstate_exp, dstate_imp, scratch = tendencies!(void, void, void, model, state, time, tau)                # Non-mutating
+
+Perform a backward Euler time step of length tau for implicit tendencies and 
+return explicit tendencies `dstate_exp` and implicit tendencies `dtstate_imp`,
+all evaluated at time `time+tau`. Also return scratch space `scratch`.
+Pass `void` as output arguments for non-mutating variant.
 
 This function is not implemented. It is meant to be implemented by the user for user-defined type `Model`.
 """
@@ -22,7 +38,7 @@ function tendencies! end
 Returns an object `k` in which we can store tendencies. Argument `state` is the model state.
 Its type may contain information needed to allocate `k`, e.g. arrays may be of eltype `ForwardDiff.Dual`.
 
-The implementation looks like:
+The fallback implementation looks like:
     k, _ = tendencies(void, void, model, state, time)
 which incurs the needless computation of tendencies.
 If this behavior is undesirable, one may pass a special value for `time` such as `nothing`
@@ -39,7 +55,7 @@ or to hold sub-stages of Runge-Kutta scheme `scheme`.
 Returns an object `k` in which we can store tendencies. Argument `state` is the model state.
 Its type may contain information needed to allocate `k`, e.g. arrays may be of eltype `ForwardDiff.Dual`.
 
-For a model, the implementation looks like:
+For a model, the fallback implementation looks like:
     _, scratch = tendencies(void, void, model, state, time)
 which incurs the needless computation of tendencies.
 If this behavior is undesirable, one may pass a special value for `time` such as `nothing`
@@ -205,6 +221,75 @@ function LSRK5(future, (; model), u0, t0, dt, (; scratch, k), butcher)
     # u4 = u0 -d*k3 + k4 = u0 + k4
     future = update!(future, model, u4, -d, k3, dt, k4)
     return future
+end
+
+"""
+    scheme = BackwardEuler(model)
+First-order backward Euler scheme for `model`. 
+Pass `scheme` to `IVPSolver`. 
+"""
+struct BackwardEuler{Model}
+    model::Model
+end
+function scratch_space((; model)::BackwardEuler, u0, t0)
+    k = model_dstate(model, u0, t0)
+    return (scratch = scratch_space(model, u0, t0), k)    
+end
+function advance!(future, (; model)::BackwardEuler, u0, t0, dt, space)
+    (; scratch, k) = space
+    k, _ = tendencies!(k, scratch, model, u0, t0, dt)
+    future = update!(future, model, u0, dt, k)
+end
+
+"""
+    scheme = Midpoint(model)
+Midpoint rule, second-order: forward Euler scheme for 1/2 time step
+followed by backward Euler scheme for 1/2 time step.
+Pass `scheme` to `IVPSolver`. 
+"""
+struct Midpoint{Model}
+    model::Model
+end
+function scratch_space((; model)::Midpoint, u0, t0)
+    k = model_dstate(model, u0, t0)
+    return (scratch = scratch_space(model, u0, t0), k0=k, k1=k)    
+end
+function advance!(future, (; model)::Midpoint, u0, t0, dt, space)
+    (; scratch, k0, k1) = space
+    k0, _ = tendencies!(k0, scratch, model, u0, t0, zero(dt))
+    u1 = update!(future, model, u0, dt/2, k0)
+    k1, _ = tendencies!(k1, scratch, model, u1, t0+dt/2, dt/2)
+    future = update!(future, model, u1, dt/2, k1)
+end
+
+"""
+    scheme = TRBDF2(model)
+Three-stage, second-order, L-stable scheme with two implicit stages.
+Pass `scheme` to `IVPSolver`. 
+"""
+struct TRBDF2{Model}
+    model::Model
+end
+function scratch_space((; model)::TRBDF2, u0, t0)
+    k() = model_dstate(model, u0, t0)
+    return (scratch = scratch_space(model, u0, t0), k=(k(), k(), k()))
+end
+function advance!(future, (; model)::TRBDF2, u0, t0::F, dt::F, space) where F
+    (; scratch, k) = space
+    (k0, k1, k2) = k
+    beta = F(1/sqrt(8))
+    alpha = 1-2*beta
+    k0, _ = tendencies!(k0, scratch, model, u0, t0, zero(dt))
+    u1 = update!(future, model, u0, alpha*dt, k0)
+    # u1 = u0 + alpha*dt*k0
+    k1, _ = tendencies!(k1, scratch, model, u1, t0+alpha*dt, alpha*dt)
+    u2 = update!(future, model, u1, (beta-alpha)*dt, k0, beta*dt, k1)
+    # u2 = u1 + (beta-alpha)*dt*k0 + beta*dt*k1
+    #    = u0 + beta*dt*k0 + beta*dt*k1
+    k2, _ = tendencies!(k2, scratch, model, u2, t0+2beta*dt, alpha*dt)
+    future = update!(future, model, u2, alpha*dt, k2)
+    # u3 = u2 + alpha*dt*k2
+    #    = u0 + beta*dt*k0 + beta*dt*k1 + alpha*k2
 end
 
 #========== for Julia <1.9 ==========#

@@ -55,6 +55,11 @@ update_carray(::Val{4}, x, u, (a,b,c,d), (ka,kb,kc,kd)) = @. x = (d*kd + c*kc + 
 function (up::LinUp{F,N})(x, u::NT, ka::NTuple{N,NT}) where {F, N, names, NT<:NamedTuple{names}}
     return map(up, svoid(x,u), u, transp(ka))
 end
+# LinUp on tuples
+function (up::LinUp{F,N})(x, u::T, ka::NTuple{N,T}) where {F, N, names, T<:Tuple}
+    return map(up, svoid(x,u), u, transp(ka))
+end
+
 svoid(::Void, u) = map(uu->void, u)
 svoid(x, u) = x
 
@@ -67,6 +72,16 @@ svoid(x, u) = x
         end,
         Val{M}())
     return NamedTuple{names}(t)
+end
+
+@inline function transp(ntup::NTuple{N,T}) where {N, T<:Tuple}
+    M = length(ntup[1]) # compile-time constant
+    getindexer(i) = coll->coll[i]
+    return ntuple(
+        let nt=ntup
+            i->map(getindexer(i), nt)
+        end,
+        Val{M}())
 end
 
 end # module
