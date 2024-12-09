@@ -1,11 +1,16 @@
+abstract type ImplicitScheme end
+max_time_step(::ImplicitScheme, _) = Inf64
+
 """
     scheme = BackwardEuler(model)
 First-order backward Euler scheme for `model`. 
 Pass `scheme` to `IVPSolver`. 
 """
-struct BackwardEuler{Model}
+struct BackwardEuler{Model} <: ImplicitScheme
     model::Model
 end
+max_time_step(::BackwardEuler, tau) = Inf64
+
 function scratch_space((; model)::BackwardEuler, u0, t0)
     k = model_dstate(model, u0, t0)
     return (scratch = scratch_space(model, u0, t0), k)    
@@ -22,9 +27,10 @@ Midpoint rule, second-order: forward Euler scheme for 1/2 time step
 followed by backward Euler scheme for 1/2 time step.
 Pass `scheme` to `IVPSolver`. 
 """
-struct Midpoint{Model}
+struct Midpoint{Model} <: ImplicitScheme
     model::Model
 end
+
 function scratch_space((; model)::Midpoint, u0, t0)
     k = model_dstate(model, u0, t0)
     return (scratch = scratch_space(model, u0, t0), k0=k, k1=k)    
@@ -42,7 +48,7 @@ end
 Three-stage, second-order, L-stable scheme with two implicit stages.
 Pass `scheme` to `IVPSolver`. 
 """
-struct TRBDF2{Model}
+struct TRBDF2{Model} <: ImplicitScheme
     model::Model
 end
 function scratch_space((; model)::TRBDF2, u0, t0)

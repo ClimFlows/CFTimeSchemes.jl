@@ -56,7 +56,7 @@ function (up::LinUp{F,N})(x, u::NT, ka::NTuple{N,NT}) where {F, N, names, NT<:Na
     return map(up, svoid(x,u), u, transp(ka))
 end
 # LinUp on tuples
-function (up::LinUp{F,N})(x, u::T, ka::NTuple{N,T}) where {F, N, names, T<:Tuple}
+function (up::LinUp{F,N})(x, u::T, ka::NTuple{N,T}) where {F, N, T<:Tuple}
     return map(up, svoid(x,u), u, transp(ka))
 end
 
