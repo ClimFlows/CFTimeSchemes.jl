@@ -1,4 +1,5 @@
-using CFTimeSchemes: RungeKutta4, KinnmarkGray, BackwardEuler, Midpoint, TRBDF2
+using CFTimeSchemes: RungeKutta4, KinnmarkGray, BackwardEuler, 
+        Midpoint, TRBDF2, ForwardBackwardEuler, ARK_TRBDF2
 using CFTimeSchemes: void, max_time_step, IVPSolver, advance!
 import CFTimeSchemes: tendencies!, scratch_space, model_dstate
 
@@ -18,6 +19,21 @@ struct Model{A}
 end
 tendencies!(dstate, _, m::Model, state, _) = (@. dstate = state*m.z), nothing
 tendencies!(dstate, _, m::Model, state, _, tau) = (@. dstate = state*m.z/(1-tau*m.z)), nothing
+#=
+function tendencies!(k, l, _, m::Model, state, _, tau) 
+#    l, _ = tendencies!(l, nothing, m, state, nothing, tau)
+#    k = @. k = zero(l)
+    k, _ = tendencies!(k, nothing, m, state, nothing)
+    l = @. l = zero(k)
+    return k, l, nothing
+end
+=#
+function tendencies!(k, l, _, m::Model, state, _, tau)
+    # tendencies are 1/2 explicit, 1/2 implicit
+    k = @. k = m.z*state / (2-m.z*tau)
+    l = @. l = m.z*state / (2-m.z*tau)
+    return k, l, nothing
+end
 
 function make_model(Scheme)
     x, y = range(-3, 0.5, 101), range(-4.5, 4.5, 201)
@@ -78,7 +94,8 @@ function autodiff(Scheme)
 end
 
 Schemes = [RungeKutta4, KinnmarkGray{2,5}, KinnmarkGray{3,5}, 
-            BackwardEuler, Midpoint, TRBDF2]
+            BackwardEuler, Midpoint, TRBDF2,
+            ARK_TRBDF2]
 
 @testset "Stability" begin
     foreach(stability_region, Schemes)

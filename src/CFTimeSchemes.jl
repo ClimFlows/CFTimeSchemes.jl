@@ -102,6 +102,7 @@ See also `Update.manage`
 include("julia/update.jl")
 include("julia/explicit.jl")
 include("julia/implicit.jl")
+include("julia/imex.jl")
 
 # Initial-value problem solver
 """

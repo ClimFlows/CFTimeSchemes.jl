@@ -63,11 +63,11 @@ function advance!(future, (; model)::TRBDF2, u0, t0::F, dt::F, space) where F
     k0, _ = tendencies!(k0, scratch, model, u0, t0, zero(dt))
     u1 = update!(future, model, u0, alpha*dt, k0)
     # u1 = u0 + alpha*dt*k0
-    k1, _ = tendencies!(k1, scratch, model, u1, t0+alpha*dt, alpha*dt)
+    k1, _ = tendencies!(k1, scratch, model, u1, t0+2alpha*dt, alpha*dt)
     u2 = update!(future, model, u1, (beta-alpha)*dt, k0, beta*dt, k1)
     # u2 = u1 + (beta-alpha)*dt*k0 + beta*dt*k1
     #    = u0 + beta*dt*k0 + beta*dt*k1
-    k2, _ = tendencies!(k2, scratch, model, u2, t0+2beta*dt, alpha*dt)
+    k2, _ = tendencies!(k2, scratch, model, u2, t0+dt, alpha*dt)
     future = update!(future, model, u2, alpha*dt, k2)
     # u3 = u2 + alpha*dt*k2
     #    = u0 + beta*dt*k0 + beta*dt*k1 + alpha*k2
