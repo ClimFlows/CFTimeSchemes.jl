@@ -57,6 +57,8 @@ stability_region(RungeKutta4)
 ### Version 0.3
 
 * new API:
+    * `tendencies!` now has variants for implicit and
+    implicit-explicit (IMEX) schemes
     * `tendencies!` now returns `scratch`. This enables default implementations for `model_dstate` and `scratch_space`.
     * `update!` now takes `model` as an argument and can be customized for user model types.
 
