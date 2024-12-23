@@ -32,8 +32,10 @@ max_time_step(::ARK_TRBDF2, tau) = tau
 
 function scratch_space((; model)::ARK_TRBDF2, u0, t0)
     k() = model_dstate(model, u0, t0)
-    return (scratch = scratch_space(model, u0, t0), k0=k(), k1=k(), k2=k(), l0=k(), l1=k(), l2=k())
+    _, _, scratch = tendencies!(void, void, void, model, u0, t0, zero(eltype(u0)))
+    return (; scratch, k0=k(), k1=k(), k2=k(), l0=k(), l1=k(), l2=k())
 end
+
 function advance!(future, (; model)::ARK_TRBDF2, u0, t0::F, dt::F, space) where F
     (; scratch, k0, k1, k2, l0, l1, l2) = space
     beta = dt/sqrt(F(8))
