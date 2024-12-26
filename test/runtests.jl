@@ -43,18 +43,25 @@ function make_model(Scheme)
     return model, scheme, z0
 end
 
+accuracy(::BackwardEuler) = 1e-5 # first-order scheme
+accuracy(::Union{KinnmarkGray{2,5}, Midpoint, TRBDF2, ARK_TRBDF2}) = 1e-9 # second-order scheme
+accuracy(::KinnmarkGray{3,5}) = 1e-13 # third-order
+accuracy(::RungeKutta4) = 1e-17 # fourth-order
+
 function stability_region(Scheme)
     model, scheme, z0 = make_model(Scheme)
     solver = IVPSolver(scheme, 1.0)
     z1, t = advance!(void, solver, z0, 0.0, 100)
     max_dt = max_time_step(scheme, 1.0)
-    @info Scheme max_dt
-    display(heatmap(@. min(1.0, abs(z1))))
-    @test true
 
-    solver = IVPSolver(scheme, 0.01)
-    z1, t = advance!(void, solver, z0, 0.0, 100)
-    display(heatmap(@. log10(abs(z1*exp(-model.z)-1))))
+    min_err = let N=20
+        solver = IVPSolver(scheme, 1/N)
+        z2, t = advance!(void, solver, z0, 0.0, N)
+        minimum(abs, @. z2*exp(-model.z)-1)
+    end
+    @info Scheme max_dt min_err
+    display(heatmap(@. min(1.0, abs(z1))))
+    @test min_err<accuracy(scheme)
 end
 
 function autodiff(Scheme)
@@ -74,7 +81,7 @@ function autodiff(Scheme)
     function loss_mutating(x)
         zx = x*z0
         z1 = similar(zx)
-        solver! = IVPSolver(scheme, 1.0, zx, nothing)
+        solver! = IVPSolver(scheme, 1.0, zx, 0.0)
         advance!(z1, solver!, zx, 0.0, 10)
         sum(abs2, z1)
     end
@@ -97,7 +104,7 @@ Schemes = [RungeKutta4, KinnmarkGray{2,5}, KinnmarkGray{3,5},
             BackwardEuler, Midpoint, TRBDF2,
             ARK_TRBDF2]
 
-@testset "Stability" begin
+@testset "Accuracy" begin
     foreach(stability_region, Schemes)
     println()
 end
