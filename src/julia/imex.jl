@@ -1,10 +1,12 @@
+abstract type IMEXScheme end
+
 """
     scheme = ForwardBackwardEuler(model)
 First-order IMEX scheme for `model`: backward Euler for implicit terms 
 followed by forward Euler for explicit terms.
 Pass `scheme` to `IVPSolver`. 
 """
-struct ForwardBackwardEuler{Model} <: ImplicitScheme
+struct ForwardBackwardEuler{Model} <: IMEXScheme
     model::Model
 end
 max_time_step(::ForwardBackwardEuler, tau) = tau
@@ -25,15 +27,17 @@ Second-order IMEX scheme from Giraldo et al. 2013. Implicit terms of `model` are
 with a TRBDF2 scheme and explicit terms with a 3-stage second-order RK scheme.
 Pass `scheme` to `IVPSolver`. 
 """
-struct ARK_TRBDF2{Model} <: ImplicitScheme
+struct ARK_TRBDF2{Model} <: IMEXScheme
     model::Model
 end
 max_time_step(::ARK_TRBDF2, tau) = tau
 
-function scratch_space((; model)::ARK_TRBDF2, u0, t0)
+function scratch_space((; model)::ARK_TRBDF2, u0, t0::Number)
     k() = model_dstate(model, u0, t0)
-    return (scratch = scratch_space(model, u0, t0), k0=k(), k1=k(), k2=k(), l0=k(), l1=k(), l2=k())
+    scratch = scratch_space(model, u0, t0, zero(t0))
+    return (; scratch, k0=k(), k1=k(), k2=k(), l0=k(), l1=k(), l2=k())
 end
+
 function advance!(future, (; model)::ARK_TRBDF2, u0, t0::F, dt::F, space) where F
     (; scratch, k0, k1, k2, l0, l1, l2) = space
     beta = dt/sqrt(F(8))

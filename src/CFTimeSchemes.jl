@@ -62,6 +62,7 @@ If this behavior is undesirable, one may pass a special value for `time` such as
 and implement a specialized version of `tendencies!` which only allocates and skips computations.
 """
 scratch_space(model, state, time) = tendencies!(void, void, model, state, time)[2]
+scratch_space(model, state, time, dt) = tendencies!(void, void, void, model, state, time, dt)[3]
 
 # Time scheme API
 """
@@ -114,8 +115,8 @@ The first syntax returns a non-mutating solver, known to work with Zygote but wh
 When `state0` and `time0` are provided, scratch spaces are allocated and a mutating solver is returned.
 `advance` should then not allocate and have better performance due to memory reuse.
 
-`state0` and `time0` are used only to allocate scratch spaces. A special value of `time0`
-such as `nothing` may be used to avoid the needless computation of tendencies, see `scratch_space` and `model_dstate`.
+`state0` and `time0` are used only to allocate scratch spaces. Provided `zero(time0)` is implemented., 
+a special value of `time0` (with user-defined type) may be passed to avoid the needless computation of tendencies, see `scratch_space` and `model_dstate`.
 """
 struct IVPSolver{F,Scheme,Scratch}
     dt::F # time step
