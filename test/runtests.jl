@@ -138,8 +138,7 @@ function autodiff(Scheme)
 
     # and Enzyme
     Dup(x) = Enzyme.Duplicated(x, Enzyme.make_zero(x))
-    g_enz = Base.VERSION<v"1.11" ? Enzyme.gradient(Enzyme.Reverse, Dup(loss_mutating), 1.0)[1] :  g_zyg # Julia 1.11 fails for the moment
-
+    g_enz = Enzyme.gradient(Enzyme.Reverse, Dup(loss_mutating), 1.0)[1]
     # check mutual consistency
     @info Scheme g_ssa g_mut g_zyg g_enz
     @test (g_ssa ≈ g_mut) & (g_ssa ≈ g_zyg) & (g_ssa ≈ g_enz)
