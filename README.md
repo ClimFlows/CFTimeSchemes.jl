@@ -4,6 +4,7 @@
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://ClimFlows.github.io/CFTimeSchemes.jl/dev/)
 [![Build Status](https://github.com/ClimFlows/CFTimeSchemes.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/ClimFlows/CFTimeSchemes.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/ClimFlows/CFTimeSchemes.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ClimFlows/CFTimeSchemes.jl)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ClimFlows/CFTimeSchemes.jl)
 
 AD-friendly, fixed time-step RK and ARK schemes.
 
