@@ -13,11 +13,11 @@ update!(x, mgr, u::S, a::F, ka, b::F, kb, c::F, kc) where {F, S} =
 update!(x, mgr, u::S, a::F, ka, b::F, kb, c::F, kc, d::F, kd) where {F, S} = 
     new_update!(x, mgr, u, (a,b,c,d), (ka,kb,kc,kd))
 
-function new_update!(x, mgr, u::S, coefs::Tuple, ks::Tuple)::S where {S<:Array} 
+function new_update!(x, mgr, u::S, coefs::Tuple, ks::Tuple)::S where {S<:AbstractArray} 
     update_array(Val(length(coefs)), manage(x,mgr), u, coefs, ks)::S
 end
 
-function new_update!(x, mgr, u::S, coefs::Tuple, ks::Tuple)::S where {S<:Array{<:Complex}} 
+function new_update!(x, mgr, u::S, coefs::Tuple, ks::Tuple)::S where {S<:AbstractArray{<:Complex}} 
     update_carray(Val(length(coefs)), manage(x,mgr), u, coefs, ks)::S
 end
 
