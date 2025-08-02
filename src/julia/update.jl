@@ -32,7 +32,7 @@ len(ks::Tuple) = length(ks)
         begin
             k = tuple_expr( :(ks[$i][$j]) for i in 1:len(ks) )
             :( new_update!(x[$j], mgr, u[$j], coefs, $k) )
-        end for j in len(u))
+        end for j in 1:len(u))
 end
 
 # new_update! for NamedTuple
