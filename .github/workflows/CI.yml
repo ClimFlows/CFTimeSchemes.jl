@@ -45,7 +45,7 @@ jobs:
           Pkg.Registry.add()
           Pkg.Registry.add(RegistrySpec(url = "https://github.com/ClimFlows/JuliaRegistry.git"))
       - uses: julia-actions/julia-downgrade-compat@v2
-        if: ${{ matrix.version == '1.9' }}
+        if: ${{ matrix.version == '1.8' }}
         with:
           skip: Pkg, TOML
       - uses: julia-actions/julia-buildpkg@v1
