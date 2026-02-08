@@ -34,8 +34,8 @@ max_time_step(::ARK_TRBDF2, tau) = tau
 
 function scratch_space((; model)::ARK_TRBDF2, u0, t0::Number)
     k0, l0, scratch = tendencies!(void, void, void, model, u0, t0, zero(t0)) 
-    k1, l1, _ = tendencies!(void, void, scratch, model, u0, t0, zero(t0)) 
-    k2, l2, _ = tendencies!(void, void, scratch, model, u0, t0, zero(t0)) 
+    k1, l1, _ = tendencies!(void, void, void, model, u0, t0, zero(t0)) 
+    k2, l2, _ = tendencies!(void, void, void, model, u0, t0, zero(t0)) 
     return (; scratch, k0, k1, k2, l0, l1, l2)
 end
 
