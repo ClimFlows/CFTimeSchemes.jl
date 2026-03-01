@@ -104,6 +104,7 @@ include("julia/update.jl")
 include("julia/explicit.jl")
 include("julia/implicit.jl")
 include("julia/imex.jl")
+include("julia/another_api.jl")
 
 # Initial-value problem solver
 """
