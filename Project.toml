@@ -25,7 +25,6 @@ MutatingOrNot = "0.1, 0.2"
 PackageExtensionCompat = "1"
 UnicodePlots = "3.8.1"
 Zygote = "0.6.77"
-julia = "1.8"
 
 [extras]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"

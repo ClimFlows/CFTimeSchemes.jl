@@ -49,10 +49,6 @@ function test_foo()
     end
 end
 
-if false
-    test_foo()
-end
-
 # Second tests on the Lorenz model
 
 struct Lorenz{S,T}<:MODEL{S} where T

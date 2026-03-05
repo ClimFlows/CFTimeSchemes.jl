@@ -154,7 +154,7 @@ Schemes = [RungeKutta4, KinnmarkGray{2,5}, KinnmarkGray{3,5},
 @testset "Accuracy" begin
     foreach(stability_region, Schemes)
     println()
-# end
+end
 
 @testset "Auto-diff" begin
     foreach(autodiff, Schemes)
