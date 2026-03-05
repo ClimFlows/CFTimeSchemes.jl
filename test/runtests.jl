@@ -160,3 +160,6 @@ end
     foreach(autodiff, Schemes)
     println()
 end
+
+include("test_another_api.jl")
+
